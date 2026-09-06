@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+[x-cloak] {
+    display: none;
+}
+
+.print-header {
+    display: none;
+}
+
+@media print {
+    .no-print {
+        display: none !important;
+    }
+
+    body {
+        background: white !important;
+    }
+
+    .shadow,
+    .rounded-lg {
+        box-shadow: none !important;
+        border-radius: 0 !important;
+    }
+
+    .py-12 {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+    }
+
+    .max-w-3xl,
+    .max-w-7xl {
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .h-screen {
+        height: auto !important;
+    }
+
+    .overflow-y-auto,
+    .overflow-hidden {
+        overflow: visible !important;
+    }
+
+    @page {
+        margin: 8mm;
+    }
+
+    .p-8 {
+        padding: 0.75rem !important;
+    }
+
+    .mb-6 {
+        margin-bottom: 0.5rem !important;
+    }
+
+    .mb-8 {
+        margin-bottom: 0.5rem !important;
+    }
+
+    .mt-8 {
+        margin-top: 0.5rem !important;
+    }
+
+    .mt-6,
+    .pt-6 {
+        margin-top: 0.35rem !important;
+        padding-top: 0.35rem !important;
+    }
+
+    .mb-2 {
+        margin-bottom: 0.25rem !important;
+    }
+
+    table.w-full.text-xs td,
+    table.w-full.text-xs th {
+        padding: 0.15rem 0.3rem !important;
+    }
+
+    .p-3 {
+        padding: 0.4rem !important;
+    }
+
+    .bulletin-page {
+        display: block;
+    }
+
+    .print-header {
+        display: flex !important;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #047857;
+    }
+
+    @media print {
+        .print-page-break {
+            page-break-before: always;
+        }
+    }
+}
