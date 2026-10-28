@@ -6,6 +6,8 @@ use App\Models\Classe;
 use App\Models\Note;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Models\BulletinArchive;
+use Illuminate\Support\Facades\Storage;
 
 class NoteController extends Controller
 {
@@ -25,6 +27,7 @@ class NoteController extends Controller
         'Orthographe',
         'Rédaction',
         'Musique',
+        'ECMP',
         'Dictée',
         'Question',
         'Écriture',
@@ -35,7 +38,6 @@ class NoteController extends Controller
         'Poésie',
         'Art plastique',
     ];
-
     const COEFFICIENTS = [
         'college_general' => [
             'Orthographe' => 1,
@@ -48,6 +50,7 @@ class NoteController extends Controller
             'EPS' => 1,
             'FHR' => 1,
             'Musique' => 1,
+            'ECMP' => 1,
         ],
         '3e' => [
             'Orthographe' => 2,
@@ -194,7 +197,7 @@ class NoteController extends Controller
             'Question' => 1,
             'Français' => 1,
             'Écriture' => 1,
-            'Calcul mental' => 1,
+            'Calcul mental' => 2,
             'Calcul écrit' => 2,
             'Lecture' => 1,
             'Questions de cours' => 2,
@@ -203,36 +206,58 @@ class NoteController extends Controller
             'FHR' => 1,
         ],
         'cm2' => [
-            'Dictée' => 2,
-            'Question' => 2,
-            'Français' => 2,
-            'Écriture' => 2,
+            'Dictée' => 1,
+            'Question' => 1,
+            'Français' => 1,
+            'Écriture' => 1,
             'Calcul mental' => 2,
             'Calcul écrit' => 2,
-            'Lecture' => 2,
+            'Lecture' => 1,
             'Questions de cours' => 2,
-            'Poésie' => 2,
-            'Art plastique' => 2,
-            'FHR' => 2,
+            'Poésie' => 1,
+            'Art plastique' => 1,
+            'FHR' => 1,
         ],
     ];
     public static function cleCoefficients(string $nomClasse): string
     {
         $nom = mb_strtolower(trim($nomClasse));
         $nom = str_replace(['é', 'è', 'ê', 'ᵉ'], 'e', $nom);
+        $nomSansEspace = str_replace([' ', '-', '_'], '', $nom);
 
-        // Retire un éventuel suffixe de groupe (ex: "6e 1" -> "6e", "seconde a 2" -> "seconde a")
+        // Bases primaire/collège : suffixe de groupe jamais significatif pour le coefficient
+        $basesSimples = ['cp1', 'cp2', 'ce1', 'ce2', 'cm1', 'cm2', '6e', '5e', '4e', '3e'];
+        foreach ($basesSimples as $base) {
+            if (str_starts_with($nomSansEspace, $base)) {
+                if (in_array($base, ['6e', '5e', '4e'])) {
+                    return 'college_general';
+                }
+                return $base;
+            }
+        }
+
+        // Bases lycée : on teste la base la plus longue en premier pour éviter les confusions
+        // (ex: "premiere c" doit être testé avant que "premiere" seul ne matche autre chose)
+        $basesLycee = [
+            'terminalea' => 'terminale_a',
+            'terminalec' => 'terminale_c',
+            'terminaled' => 'terminale_d',
+            'premierea' => 'premiere_a',
+            'premierec' => 'premiere_cd',
+            'premiered' => 'premiere_cd',
+            'premieres' => 'premiere_cd',
+            'secondea' => 'seconde_a',
+            'secondec' => 'seconde_c',
+        ];
+        foreach ($basesLycee as $base => $cle) {
+            if (str_starts_with($nomSansEspace, $base)) {
+                return $cle;
+            }
+        }
+
+        // Dernier recours : ancienne logique par suffixe espacé, pour tout nom non couvert ci-dessus
         $nomBase = preg_replace('/\s+\S+$/', '', $nom);
-
         foreach ([$nom, $nomBase] as $candidat) {
-            if (in_array($candidat, ['6e', '5e', '4e'])) {
-                return 'college_general';
-            }
-
-            if (in_array($candidat, ['premiere c', 'premiere d', 'premiere s',])) {
-                return 'premiere_cd';
-            }
-
             $cle = str_replace(' ', '_', $candidat);
             if (array_key_exists($cle, self::COEFFICIENTS)) {
                 return $cle;
@@ -240,6 +265,19 @@ class NoteController extends Controller
         }
 
         return str_replace(' ', '_', $nom);
+    }
+    public static function anneeScolaireActuelle(): string
+    {
+        $mois = now()->month;
+        $annee = now()->year;
+
+        if ($mois >= 10) {
+            return $annee . '-' . ($annee + 1);
+        }
+        if ($mois <= 6) {
+            return ($annee - 1) . '-' . $annee;
+        }
+        return $annee . '-' . ($annee + 1);
     }
 
     public function saisie(Classe $classe, Request $request)
@@ -249,17 +287,17 @@ class NoteController extends Controller
         }
 
         $matiere = $request->query('matiere', self::MATIERES[0]);
-        $matiere = $request->query('matiere', self::MATIERES[0]);
         $trimestre = (int) $request->query('trimestre', 1);
+        $anneeScolaire = $request->query('annee_scolaire', self::anneeScolaireActuelle());
 
         $eleves = $classe->eleves()->orderBy('nom')->get();
 
         $notesExistantes = Note::whereIn('eleve_id', $eleves->pluck('id'))
             ->where('matiere', $matiere)
             ->where('trimestre', $trimestre)
+            ->where('annee_scolaire', $anneeScolaire)
             ->get()
             ->groupBy('eleve_id');
-
         $donnees = $eleves->map(function ($eleve) use ($notesExistantes) {
             $notesEleve = $notesExistantes->get($eleve->id, collect());
 
@@ -284,6 +322,7 @@ class NoteController extends Controller
             'matieres' => self::MATIERES,
             'types' => self::TYPES,
             'donnees' => $donnees,
+            'anneeScolaire' => $anneeScolaire,
         ]);
     }
 
@@ -292,17 +331,21 @@ class NoteController extends Controller
         $data = $request->validate([
             'matiere' => 'required|string',
             'trimestre' => 'required|integer|between:1,3',
+            'annee_scolaire' => 'nullable|string',
             'notes' => 'required|array',
             'notes.*.eleve_id' => 'required|exists:eleves,id',
             'notes.*.type_evaluation' => 'required|string',
             'notes.*.note' => 'nullable|numeric|min:0|max:20',
         ]);
 
+        $anneeScolaire = $data['annee_scolaire'] ?? self::anneeScolaireActuelle();
+
         foreach ($data['notes'] as $n) {
             if ($n['note'] === null) {
                 Note::where('eleve_id', $n['eleve_id'])
                     ->where('matiere', $data['matiere'])
                     ->where('trimestre', $data['trimestre'])
+                    ->where('annee_scolaire', $anneeScolaire)
                     ->where('type_evaluation', $n['type_evaluation'])
                     ->delete();
                 continue;
@@ -313,14 +356,35 @@ class NoteController extends Controller
                     'eleve_id' => $n['eleve_id'],
                     'matiere' => $data['matiere'],
                     'trimestre' => $data['trimestre'],
+                    'annee_scolaire' => $anneeScolaire,
                     'type_evaluation' => $n['type_evaluation'],
                 ],
                 ['note' => $n['note']]
             );
         }
 
+        $this->invaliderArchivesBulletins($data['notes'], $data['trimestre'], $anneeScolaire);
+
         return back()->with('success', 'Notes enregistrées.');
     }
+
+    private function invaliderArchivesBulletins(array $notes, int $trimestre, string $anneeScolaire): void
+    {
+        $elevesIds = collect($notes)->pluck('eleve_id')->unique();
+
+        foreach ($elevesIds as $eleveId) {
+            $archive = BulletinArchive::where('eleve_id', $eleveId)
+                ->where('trimestre', $trimestre)
+                ->where('annee_scolaire', $anneeScolaire)
+                ->first();
+
+            if ($archive) {
+                Storage::disk('public')->delete($archive->chemin_fichier);
+                $archive->delete();
+            }
+        }
+    }
+
     public static function estPrimaire(string $nomClasse): bool
     {
         $cle = self::cleCoefficients($nomClasse);

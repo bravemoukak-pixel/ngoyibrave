@@ -29,4 +29,8 @@ class ParentEleve extends Model
     {
         return $this->hasMany(PaiementScolarite::class, 'parent_eleve_id');
     }
+    public function user()
+    {
+        return $this->hasOne(User::class, 'parent_eleve_id');
+    }
 }

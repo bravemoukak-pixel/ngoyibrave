@@ -32,6 +32,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'parent_eleve_id'
     ];
     /**
      * The attributes that should be hidden for serialization.
@@ -65,5 +66,9 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+    public function parentEleve()
+    {
+        return $this->belongsTo(ParentEleve::class, 'parent_eleve_id');
     }
 }

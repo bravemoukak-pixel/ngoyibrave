@@ -18,9 +18,29 @@
         <span>🎓</span>
         <span>Niveaux</span>
     </Link>
+    <Link :href="route('emplois-du-temps.general.college')" class="flex items-center gap-2 px-4 py-2 rounded hover:bg-emerald-700 transition">
+    <span>🗓️</span>
+    <span>Emploi du temps — Collège</span>
+</Link>
+<Link :href="route('emplois-du-temps.general.lycee')" class="flex items-center gap-2 px-4 py-2 rounded hover:bg-emerald-700 transition">
+    <span>🗓️</span>
+    <span>Emploi du temps — Lycée</span>
+</Link>
+<Link :href="route('emplois-du-temps.general.complet')" class="flex items-center gap-2 px-4 py-2 rounded hover:bg-emerald-700 transition">
+    <span>🗓️</span>
+    <span>Emploi du temps général — Complet</span>
+</Link>
+<Link :href="route('statistiques.evolution')" class="flex items-center gap-2 px-4 py-2 rounded hover:bg-emerald-700 transition">
+    <span>📈</span>
+    <span>Évolution des résultats</span>
+</Link>
     <Link :href="route('professeurs.index')" class="flex items-center gap-2 px-4 py-2 rounded hover:bg-emerald-700 transition">
         <span>👨‍🏫</span>
         <span>Enseignants</span>
+    </Link>
+    <Link :href="route('professeurs.annuaire')" class="flex items-center gap-2 px-4 py-2 rounded hover:bg-emerald-700 transition">
+        <span>📞</span>
+        <span>Annuaire téléphonique</span>
     </Link>
     <Link :href="route('pointage.index')" class="flex items-center gap-2 px-4 py-2 rounded hover:bg-emerald-700 transition">
         <span>📍</span>
@@ -38,7 +58,7 @@
         <span>🛠️</span>
         <span>Corriger un pointage</span>
     </Link>
-    <Link :href="route('admin.niveaux')" class="flex items-center gap-2 px-4 py-2 rounded hover:bg-emerald-700 transition">
+    <Link v-if="$page.props.auth.user.role !== 'direction'" :href="route('admin.niveaux')" class="flex items-center gap-2 px-4 py-2 rounded hover:bg-emerald-700 transition">
         <span>⚙️</span>
         <span>Gérer les niveaux</span>
     </Link>
@@ -46,19 +66,43 @@
         <span>👪</span>
         <span>Parents</span>
     </Link>
+    <Link :href="route('parents.par-niveau')" class="flex items-center gap-2 px-4 py-2 rounded hover:bg-emerald-700 transition">
+        <span>👪</span>
+        <span>Parents par niveau</span>
+    </Link>
     <Link :href="route('paiements.index')" class="flex items-center gap-2 px-4 py-2 rounded hover:bg-emerald-700 transition">
         <span>💳</span>
         <span>Paiements</span>
     </Link>
-    <Link :href="route('suivi-notes.index')" class="flex items-center gap-2 px-4 py-2 rounded hover:bg-emerald-700 transition">
-        <span>📊</span>
-        <span>Suivi des notes</span>
-    </Link>
+   <Link :href="route('suivi-paiements.index')" class="flex items-center gap-2 px-4 py-2 rounded hover:bg-emerald-700 transition">
+        <span>💵</span>
+        <span>Suivi des paiements</span>
+   </Link>
     <Link :href="route('suivi-notes.classe')" class="flex items-center gap-2 px-4 py-2 rounded hover:bg-emerald-700 transition">
         <span>📋</span>
         <span>Suivi des évaluations</span>
     </Link>
-</nav>
+    <Link :href="route('historique-classes.index')" class="flex items-center gap-2 px-4 py-2 rounded hover:bg-emerald-700 transition">
+        <span>🗂️</span>
+        <span>Historique des classes</span>
+    </Link>
+    <Link :href="route('statistiques.college')" class="flex items-center gap-2 px-4 py-2 rounded hover:bg-emerald-700 transition">
+        <span>📊</span>
+        <span>Résultats globaux — Collège</span>
+    </Link>
+    <Link :href="route('statistiques.lycee')" class="flex items-center gap-2 px-4 py-2 rounded hover:bg-emerald-700 transition">
+        <span>📊</span>
+        <span>Résultats globaux — Lycée</span>
+    </Link>
+    <Link :href="route('statistiques.repartition-age')" class="flex items-center gap-2 px-4 py-2 rounded hover:bg-emerald-700 transition">
+        <span>🎂</span>
+        <span>Répartition par âge</span>
+    </Link>
+   <a v-if="$page.props.auth.user.role !== 'direction'" :href="route('sauvegarde.exporter')" class="flex items-center gap-2 px-4 py-2 rounded hover:bg-emerald-700 transition">
+      <span>💾</span>
+      <span>Sauvegarder la base</span>
+    </a>
+    </nav>
     </aside>
 
     <!-- Contenu principal -->
@@ -87,3 +131,16 @@
 <script setup>
 import { Link } from '@inertiajs/vue3'
 </script>
+
+<style>
+@media print {
+    .flex.h-screen,
+    .flex-1.flex.flex-col.overflow-hidden,
+    main.flex-1.overflow-y-auto {
+        display: block !important;
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+}
+</style>

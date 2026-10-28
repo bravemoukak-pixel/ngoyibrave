@@ -105,21 +105,45 @@ function allerVersEleves(niveauId) {
                                 >
                                     📝
                                 </Link>
-                            </div>
+                               <Link
+    :href="route('emplois-du-temps.classe', classe.id)"
+    @click.stop
+    class="text-xs bg-white/70 hover:bg-white text-gray-700 px-2 py-1.5 rounded-full transition-transform hover:scale-105"
+    title="Emploi du temps"
+>
+                🗓️
+                            </Link>
+                           <Link
+                            :href="route('passage-classe.index', classe.id)"
+                            @click.stop
+                            class="text-xs bg-white/70 hover:bg-white text-gray-700 px-2 py-1.5 rounded-full transition-transform hover:scale-105"
+                            title="Passage de classe"
+                        >
+                            🎓
+                        </Link>
+                        <Link
+                            :href="route('diplomes.index', classe.id)"
+                            @click.stop
+                            class="text-xs bg-white/70 hover:bg-white text-gray-700 px-2 py-1.5 rounded-full transition-transform hover:scale-105"
+                            title="Diplômes"
+                        >
+                            🏆
+                        </Link>
+                        </div>
                         </div>
 
-<!-- BOUTON D'INSCRIPTION -->
-<div class="mt-4 pt-4 border-t border-white/60 text-sm text-gray-500 flex items-center justify-between">
-    <span>{{ niveau.classes.length }} classe{{ niveau.classes.length > 1 ? 's' : '' }}</span>
-    <Link
-        :href="route('eleves.create', niveau.id)"
-        @click.stop
-        class="text-white text-xs font-semibold px-3 py-1.5 rounded-full bg-gray-800 hover:bg-gray-900"
-    >
-        + Inscrire
-    </Link>
-</div>
-<!-- FIN BOUTON D'INSCRIPTION -->
+                        <!-- BOUTON D'INSCRIPTION -->
+                        <div class="mt-4 pt-4 border-t border-white/60 text-sm text-gray-500 flex items-center justify-between">
+                            <span>{{ niveau.classes.length }} classe{{ niveau.classes.length > 1 ? 's' : '' }}</span>
+                            <Link
+                                :href="route('eleves.create', niveau.id)"
+                                @click.stop
+                                class="text-white text-xs font-semibold px-3 py-1.5 rounded-full bg-gray-800 hover:bg-gray-900"
+                            >
+                                + Inscrire
+                            </Link>
+                        </div>
+                        <!-- FIN BOUTON D'INSCRIPTION -->
 
                     </div>
                 </div>

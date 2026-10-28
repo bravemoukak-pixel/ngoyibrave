@@ -46,19 +46,15 @@ class PaieController extends Controller
             ->orderBy('horodatage')
             ->get();
 
-        $secondes = 0;
-        $arrivee = null;
+       $tdProf = \App\Models\EmploiDuTemps::where('type_seance', 'td')
+    ->where('professeur_id', $professeurId)
+    ->get(['jour', 'creneau_horaire_id'])
+    ->unique(fn($e) => $e->jour . '-' . $e->creneau_horaire_id);
 
-        foreach ($pointages as $p) {
-            if ($p->type === 'arrivee') {
-                $arrivee = $p->horodatage;
-            } elseif ($p->type === 'depart' && $arrivee) {
-                $secondes += $arrivee->diffInSeconds($p->horodatage);
-                $arrivee = null;
-            }
-        }
+$creneaux = \App\Models\CreneauHoraire::all()->keyBy('id');
 
-        $heures = round($secondes / 3600, 2);
+$repartition = \App\Services\CalculHeures::repartir($pointages, $tdProf, $creneaux);
+$heures = $repartition['heures'];
         $salaireBrut = round($heures * $taux, 2);
 
         $lignes = LignePaie::where('professeur_id', $professeurId)
@@ -79,7 +75,9 @@ class PaieController extends Controller
                 'niveau' => $estLycee ? 'Lycée' : 'Collège',
             ],
             'mois' => $debut->locale('fr')->translatedFormat('F Y'),
-            'heures' => $heures,
+            'heures_cours' => $repartition['heures_cours'],
+            'heures_td' => $repartition['heures_td'],
+            'heures' => $heures, // total
             'taux' => $taux,
             'salaireBrut' => $salaireBrut,
             'lignes' => $lignes,

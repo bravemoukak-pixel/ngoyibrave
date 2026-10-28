@@ -145,8 +145,16 @@ function anneeScolaire() {
                         <table class="w-full border-collapse border border-gray-400 text-sm mb-6">
                             <tbody>
                                 <tr class="border-b border-gray-400">
-                                    <td class="p-2 border border-gray-400 font-medium">Heures effectuées</td>
-                                    <td class="p-2 border border-gray-400 text-right">{{ bulletin.heures }} h</td>
+                                    <td class="p-2 border border-gray-400 font-medium">Heures de cours effectuées</td>
+                                    <td class="p-2 border border-gray-400 text-right">{{ bulletin.heures_cours }} h</td>
+                                </tr>
+                                <tr v-if="bulletin.heures_td > 0" class="border-b border-gray-400">
+                                    <td class="p-2 border border-gray-400 font-medium">Heures de TD</td>
+                                    <td class="p-2 border border-gray-400 text-right">{{ bulletin.heures_td }} h</td>
+                                </tr>
+                                <tr class="border-b border-gray-400">
+                                    <td class="p-2 border border-gray-400 font-semibold">Total heures</td>
+                                    <td class="p-2 border border-gray-400 text-right font-semibold">{{ bulletin.heures }} h</td>
                                 </tr>
                                 <tr class="border-b border-gray-400">
                                     <td class="p-2 border border-gray-400 font-medium">Taux horaire</td>

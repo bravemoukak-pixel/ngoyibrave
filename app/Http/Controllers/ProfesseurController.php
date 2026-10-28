@@ -36,6 +36,26 @@ class ProfesseurController extends Controller
             'professeursPrimaire' => $professeurs->filter($estPrimaire)->map($formatter)->values(),
         ]);
     }
+    public function annuaire()
+    {
+        $professeurs = Professeur::with('classes.niveau')->orderBy('nom')->get();
+
+        $estCollege = fn($prof) => $prof->classes->contains(fn($c) => $c->niveau->titre === 'Collège');
+        $estLycee = fn($prof) => $prof->classes->contains(fn($c) => str_starts_with($c->niveau->titre, 'Lycée'));
+
+        $formatter = fn($prof) => [
+            'id' => $prof->id,
+            'nom' => $prof->nom,
+            'prenom' => $prof->prenom,
+            'matiere' => $prof->matiere,
+            'telephone' => $prof->telephone,
+        ];
+
+        return Inertia::render('Professeurs/Annuaire', [
+            'professeursCollege' => $professeurs->filter($estCollege)->map($formatter)->values(),
+            'professeursLycee' => $professeurs->filter($estLycee)->map($formatter)->values(),
+        ]);
+    }
     public function create()
     {
         return Inertia::render('Professeurs/Create', [

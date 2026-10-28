@@ -6,6 +6,7 @@ use App\Models\Eleve;
 use App\Models\Niveau;
 use App\Models\Classe;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class EleveController extends Controller
@@ -36,7 +37,12 @@ class EleveController extends Controller
             'adresse' => 'required|string|max:255',
             'classe_id' => 'required|exists:classes,id',
             'montant_annuel' => 'nullable|numeric|min:0',
+            'photo' => 'nullable|image|max:2048',
         ]);
+
+        if ($request->hasFile('photo')) {
+            $validated['photo'] = $request->file('photo')->store('photos-eleves', 'public');
+        }
 
         Eleve::create($validated);
 
@@ -56,6 +62,7 @@ class EleveController extends Controller
                 'adresse' => $eleve->adresse,
                 'classe_id' => $eleve->classe_id,
                 'montant_annuel' => $eleve->montant_annuel,
+                'photo' => $eleve->photo,
             ],
             'classes' => Classe::all(['id', 'nom']),
         ]);
@@ -72,7 +79,15 @@ class EleveController extends Controller
             'adresse' => 'required|string|max:255',
             'classe_id' => 'required|exists:classes,id',
             'montant_annuel' => 'nullable|numeric|min:0',
+            'photo' => 'nullable|image|max:2048',
         ]);
+
+        if ($request->hasFile('photo')) {
+            if ($eleve->photo) {
+                Storage::disk('public')->delete($eleve->photo);
+            }
+            $validated['photo'] = $request->file('photo')->store('photos-eleves', 'public');
+        }
 
         $eleve->update($validated);
 

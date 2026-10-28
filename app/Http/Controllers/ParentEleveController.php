@@ -57,9 +57,19 @@ class ParentEleveController extends Controller
             Eleve::whereIn('id', $validated['eleves'])->update(['parent_eleve_id' => $parent->id]);
         }
 
-        return redirect()->route('parents.index')->with('success', 'Parent ajouté avec succès.');
-    }
+        $motDePasse = substr(preg_replace('/\D/', '', $parent->telephone), -4);
 
+        \App\Models\User::create([
+            'name' => $parent->nom . ' ' . $parent->prenom,
+            'email' => $parent->telephone,
+            'password' => \Illuminate\Support\Facades\Hash::make($motDePasse),
+            'role' => 'parent',
+            'parent_eleve_id' => $parent->id,
+            'email_verified_at' => now(),
+        ]);
+
+        return redirect()->route('parents.index')->with('success', 'Parent ajouté avec succès. Identifiant de connexion : ' . $parent->telephone . ' — mot de passe : ' . $motDePasse);
+    }
     public function edit(ParentEleve $parent)
     {
         return Inertia::render('Parents/Edit', [
@@ -141,6 +151,56 @@ class ParentEleveController extends Controller
             'totalDu' => $totalDu,
             'totalPaye' => $totalPaye,
             'reste' => $totalDu - $totalPaye,
+        ]);
+    }
+    public function parNiveau()
+    {
+        $parents = ParentEleve::with('eleves.classe.niveau')->orderBy('nom')->get();
+
+        $college = [];
+        $lycee = [];
+        $primaire = [];
+
+        foreach ($parents as $parent) {
+            $enfantsCollege = $parent->eleves->filter(fn($e) => $e->classe && $e->classe->niveau && $e->classe->niveau->titre === 'Collège');
+            $enfantsLycee = $parent->eleves->filter(fn($e) => $e->classe && $e->classe->niveau && str_starts_with($e->classe->niveau->titre, 'Lycée'));
+            $enfantsPrimaire = $parent->eleves->filter(fn($e) => $e->classe && $e->classe->niveau && $e->classe->niveau->titre === 'Primaire');
+
+            if ($enfantsCollege->isNotEmpty()) {
+                $college[] = [
+                    'id' => $parent->id,
+                    'nom' => $parent->nom,
+                    'prenom' => $parent->prenom,
+                    'telephone' => $parent->telephone,
+                    'enfants' => $enfantsCollege->map(fn($e) => $e->nom . ' ' . $e->prenom . ' (' . $e->classe->nom . ')')->values(),
+                ];
+            }
+
+            if ($enfantsLycee->isNotEmpty()) {
+                $lycee[] = [
+                    'id' => $parent->id,
+                    'nom' => $parent->nom,
+                    'prenom' => $parent->prenom,
+                    'telephone' => $parent->telephone,
+                    'enfants' => $enfantsLycee->map(fn($e) => $e->nom . ' ' . $e->prenom . ' (' . $e->classe->nom . ')')->values(),
+                ];
+            }
+
+            if ($enfantsPrimaire->isNotEmpty()) {
+                $primaire[] = [
+                    'id' => $parent->id,
+                    'nom' => $parent->nom,
+                    'prenom' => $parent->prenom,
+                    'telephone' => $parent->telephone,
+                    'enfants' => $enfantsPrimaire->map(fn($e) => $e->nom . ' ' . $e->prenom . ' (' . $e->classe->nom . ')')->values(),
+                ];
+            }
+        }
+
+        return Inertia::render('Parents/ParNiveau', [
+            'parentsCollege' => $college,
+            'parentsLycee' => $lycee,
+            'parentsPrimaire' => $primaire,
         ]);
     }
 }

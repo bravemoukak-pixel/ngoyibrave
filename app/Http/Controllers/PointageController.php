@@ -67,34 +67,84 @@ class PointageController extends Controller
 
         $professeurs = Professeur::with(['classes.niveau', 'pointages' => function ($q) use ($debut, $fin) {
             $q->whereBetween('horodatage', [$debut, $fin])->orderBy('horodatage');
-        }])->orderBy('nom')->get();
-        $resultats = $professeurs->map(function ($prof) use ($parametres) {
+        }])
+            ->whereHas('classes.niveau', fn($q) => $q->whereIn('titre', ['Collège']))
+            ->orWhereHas('classes.niveau', fn($q) => $q->where('titre', 'like', 'Lycée%'))
+            ->orderBy('nom')
+            ->get();
+        // Séances de TD de tous les professeurs, groupées par professeur
+        $emploisTd = \App\Models\EmploiDuTemps::where('type_seance', 'td')
+            ->get(['professeur_id', 'jour', 'creneau_horaire_id'])
+            ->groupBy('professeur_id');
+
+        $creneaux = \App\Models\CreneauHoraire::all()->keyBy('id');
+
+        $jours = [1 => 'lundi', 2 => 'mardi', 3 => 'mercredi', 4 => 'jeudi', 5 => 'vendredi', 6 => 'samedi', 7 => 'dimanche'];
+
+        $resultats = $professeurs->map(function ($prof) use ($parametres, $emploisTd, $creneaux, $jours) {
             $estLycee = $prof->classes->contains(fn($c) => str_starts_with($c->niveau->titre, 'Lycée'));
             $taux = $estLycee ? $parametres->taux_horaire_lycee : $parametres->taux_horaire_college;
 
+            // TD du professeur, sans doublon (une même séance peut concerner plusieurs classes)
+            $tdProf = ($emploisTd[$prof->id] ?? collect())->unique(fn($e) => $e->jour . '-' . $e->creneau_horaire_id);
+
             $secondes = 0;
+            $secondesTd = 0;
             $arrivee = null;
 
             foreach ($prof->pointages as $p) {
                 if ($p->type === 'arrivee') {
                     $arrivee = $p->horodatage;
                 } elseif ($p->type === 'depart' && $arrivee) {
-                    $secondes += $arrivee->diffInSeconds($p->horodatage);
+                    $duree = $arrivee->diffInSeconds($p->horodatage);
+                    $secondes += $duree;
+
+                    $jourNom = $jours[$arrivee->isoWeekday()];
+                    $tdDuPointage = 0;
+
+                    foreach ($tdProf->where('jour', $jourNom) as $seance) {
+                        $creneau = $creneaux[$seance->creneau_horaire_id] ?? null;
+                        if (!$creneau) continue;
+
+                        $debutSeance = $arrivee->copy()->setTimeFromTimeString($creneau->heure_debut);
+                        $finSeance = $arrivee->copy()->setTimeFromTimeString($creneau->heure_fin);
+
+                        $recoupement = min($finSeance->timestamp, $p->horodatage->timestamp)
+                            - max($debutSeance->timestamp, $arrivee->timestamp);
+
+                        if ($recoupement > 0) {
+                            $tdDuPointage += $recoupement;
+                        }
+                    }
+
+                    // Le TD ne peut jamais dépasser la durée du pointage
+                    $secondesTd += min($tdDuPointage, $duree);
                     $arrivee = null;
                 }
             }
 
             $heures = round($secondes / 3600, 2);
+            $heuresTd = round($secondesTd / 3600, 2);
+            $heuresCours = round($heures - $heuresTd, 2);
             $montant = round($heures * $taux, 2);
+            $datesTravaillees = $prof->pointages
+                ->pluck('horodatage')
+                ->map(fn($h) => $h->format('d/m'))
+                ->unique()
+                ->values();
 
             return [
                 'id' => $prof->id,
                 'nom' => $prof->nom,
                 'prenom' => $prof->prenom,
                 'niveau' => $estLycee ? 'Lycée' : 'Collège',
-                'heures' => $heures,
+                'dates' => $datesTravaillees->implode(', '),
+                'heures_cours' => $heuresCours,
+                'heures_td' => $heuresTd,
+                'heures' => $heures, // total = cours + TD
                 'taux' => $taux,
                 'montant' => $montant,
+
             ];
         });
 
@@ -104,6 +154,7 @@ class PointageController extends Controller
             'date' => $date,
         ]);
     }
+
     public function gestion(Request $request)
     {
         $professeurId = $request->query('professeur_id');

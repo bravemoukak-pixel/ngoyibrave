@@ -7,6 +7,7 @@ const props = defineProps({
   classe: Object,
   matiere: String,
   trimestre: Number,
+  anneeScolaire: String,
   matieres: Array,
   types: Array,
   donnees: Array,
@@ -33,6 +34,7 @@ function changerFiltre() {
     router.get(route('notes.saisie', props.classe.id), {
         matiere: matiereSelectionnee.value,
         trimestre: trimestreSelectionne.value,
+        annee_scolaire: props.anneeScolaire,
     });
 }
 
@@ -52,6 +54,7 @@ function enregistrer() {
     router.post(route('notes.enregistrer'), {
         matiere: matiereSelectionnee.value,
         trimestre: trimestreSelectionne.value,
+        annee_scolaire: props.anneeScolaire,
         notes: notesAEnvoyer,
     }, {
         preserveScroll: true,

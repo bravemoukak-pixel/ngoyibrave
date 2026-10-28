@@ -1,15 +1,21 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { router } from '@inertiajs/vue3';
+import ParentLayout from '@/Layouts/ParentLayout.vue';
+import { router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
+const page = usePage();
+const layoutComponent = computed(() => page.props.auth.user.role === 'parent' ? ParentLayout : AdminLayout);
 const props = defineProps({
   eleve: Object,
   classe: Object,
+  estPrimaire: Boolean,
   estPrimaire: Boolean, // nouveau prop
+  estLycee: Boolean,
   trimestre: Number,
   anneeScolaire: String,
   lignes: Array,
+  anneesDisponibles: Array,
   moyenneGenerale: [Number, null],
   moyenneAnnuelle: [Number, null],
   rangGeneral: String,
@@ -26,6 +32,8 @@ const props = defineProps({
   appreciationTravailAnnuelle: String,
   mentionAnnuelle: String, 
   assiduite: Object,
+  dateSignature: String,
+  urlArchive: String,
 });
 const totalMC = computed(() =>
     props.lignes.reduce((s, l) => s + (l.mc ?? 0), 0)
@@ -34,7 +42,7 @@ const totalCoef = computed(() =>
     props.lignes.reduce((s, l) => s + (l.coefficient ?? 0), 0)
 );
 const totalTotal = computed(() =>
-    props.lignes.reduce((s, l) => s + (l.total ?? 0), 0)
+    props.lignes.reduce((s, l) => s + (l.totalBrut ?? 0), 0)
 );
 
 function changerTrimestre(t) {
@@ -52,11 +60,17 @@ const decisionAnnuelle = computed(() => {
     if (props.trimestre !== 3 || props.moyenneAnnuelle == null) return null;
     return props.moyenneAnnuelle >= 10 ? 'PASSE EN CLASSE SUPÉRIEURE' : 'REDOUBLE LA CLASSE';
 });
+function changerAnnee(annee) {
+    router.get(route('bulletin.show', props.eleve.id), {
+        trimestre: props.trimestre,
+        annee_scolaire: annee,
+    });
+}
 </script>
 <template>
-    <AdminLayout>
+    <component :is="layoutComponent">
         <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            <h2 :class="page.props.auth.user.role === 'parent' ? 'font-semibold text-xl text-white leading-tight' : 'font-semibold text-xl text-gray-800 leading-tight'">
                 Bulletin — {{ eleve.nom }} {{ eleve.prenom }}
             </h2>
         </template>
@@ -65,26 +79,43 @@ const decisionAnnuelle = computed(() => {
             <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
                 <div class="bg-white shadow rounded-lg p-8">
 
-                    <div class="flex justify-between items-center mb-6 no-print">
-                        <div class="flex gap-2">
-                            <button
-                                v-for="t in [1, 2, 3]"
-                                :key="t"
-                                @click="changerTrimestre(t)"
-                                :class="[
-                                    'px-4 py-2 rounded-md text-sm font-semibold',
-                                    trimestre === t ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
-                                ]"
+                 <div class="flex justify-between items-center mb-6 no-print">
+                        <div class="flex items-center gap-4">
+                            <div class="flex gap-2">
+                                <button
+                                    v-for="t in [1, 2, 3]"
+                                    :key="t"
+                                    @click="changerTrimestre(t)"
+                                    :class="[
+                                        'px-4 py-2 rounded-md text-sm font-semibold',
+                                        trimestre === t ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+                                    ]"
+                                >
+                                    Trimestre {{ t }}
+                                </button>
+                            </div>
+
+                            <select
+                                :value="anneeScolaire"
+                                @change="changerAnnee($event.target.value)"
+                                class="rounded-md border-gray-300 text-sm"
                             >
-                                Trimestre {{ t }}
+                                <option v-for="annee in anneesDisponibles" :key="annee" :value="annee">
+                                    {{ annee }}
+                                </option>
+                            </select>
+                        </div>
+                        <div class="flex gap-2">
+                            <a :href="urlArchive"
+                               target="_blank"
+                               class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-md">
+                                📄 PDF archivé
+                            </a>
+                            <button @click="imprimer"
+                                    class="bg-gray-700 hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-md">
+                                🖶 Imprimer
                             </button>
                         </div>
-                        <button
-                            @click="imprimer"
-                            class="bg-gray-700 hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-md"
-                        >
-                            🖶 Imprimer
-                        </button>
                     </div>
 
                     <div class="mb-8">
@@ -98,11 +129,11 @@ const decisionAnnuelle = computed(() => {
                                     <p>Pointe-Noire</p>
                                 </div>
                             </div>
-                            <div class="text-right">
-                                <p class="font-bold">République du Congo</p>
-                                <p>Ministère de l'Enseignement, Préscolaire, Primaire,</p>
-                                <p>Secondaire et de l'Alphabétisation</p>
-                            </div>
+                          <div class="text-center">
+                            <p class="font-bold">République du Congo</p>
+                            <p>Ministère de l'Enseignement, Préscolaire, Primaire,</p>
+                            <p>Secondaire et de l'Alphabétisation</p>
+                        </div>
                         </div>
 
                         <div class="text-center border-2 border-gray-800 rounded-md py-2 mb-6">
@@ -115,6 +146,10 @@ const decisionAnnuelle = computed(() => {
                             <p><span class="font-semibold">Nom :</span> {{ eleve.nom }}</p>
                             <p><span class="font-semibold">Sexe :</span> {{ eleve.sexe }}</p>
                             <p><span class="font-semibold">Prénom :</span> {{ eleve.prenom }}</p>
+                            <p></p>
+                            <p><span class="font-semibold">Date de naissance :</span> {{ eleve.sexe === 'F' ? 'Née' : 'Né' }} le {{ eleve.date_naissance ?? '—' }}</p>
+                            <p></p>
+                            <p><span class="font-semibold">Lieu de naissance :</span> {{ eleve.lieu_naissance ?? '—' }}</p>
                         </div>
                     </div>
 
@@ -142,7 +177,7 @@ const decisionAnnuelle = computed(() => {
                             <td v-if="!estPrimaire" class="p-1.5 text-center border border-gray-400">{{ ligne.mc ?? '—' }}</td>
                             <td class="p-1.5 text-center border border-gray-400">{{ ligne.composition ?? '—' }}</td>
                             <td class="p-1.5 text-center border border-gray-400">{{ ligne.coefficient }}</td>
-                            <td class="p-1.5 text-center border border-gray-400">{{ estPrimaire ? (ligne.totalBrut ?? '—') : (ligne.total ?? '—') }}</td>
+                            <td class="p-1.5 text-center border border-gray-400">{{ ligne.totalBrut ?? '—' }}</td>
                             <td class="p-1.5 text-center font-semibold border border-gray-400">{{ ligne.moyenne ?? '—' }}</td>
                             <td class="p-1.5 text-center border border-gray-400">{{ ligne.rang }}</td>
                             <td class="p-1.5 border border-gray-400">{{ ligne.appreciation }}</td>
@@ -198,97 +233,101 @@ const decisionAnnuelle = computed(() => {
                     </tfoot>
                 </table>
                     <div class="mt-8 text-sm">
-           <div :class="trimestre === 3 ? 'grid grid-cols-3 gap-4' : 'grid grid-cols-2 gap-4'">
-                    <div class="border rounded-md p-3">
-                       <p class="font-bold mb-2">Résultat trimestriel</p>
-                                <table class="w-full text-xs border-collapse border border-gray-400">
-                                    <tr v-if="!estPrimaire">
-                                        <td class="py-1 px-2 border border-gray-400">Moyenne de classe</td>
-                                        <td class="py-1 px-2 text-right font-semibold border border-gray-400">{{ moyenneControleEleve ?? '—' }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="py-1 px-2 border border-gray-400">Moyenne la plus haute</td>
-                                        <td class="py-1 px-2 text-right border border-gray-400">{{ moyennePlusHaute ?? '—' }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="py-1 px-2 border border-gray-400">Moyenne la plus basse</td>
-                                        <td class="py-1 px-2 text-right border border-gray-400">{{ moyennePlusBasse ?? '—' }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="py-1 px-2 border border-gray-400">Effectif total de la classe</td>
-                                        <td class="py-1 px-2 text-right border border-gray-400">{{ effectifClasse }}</td>
-                                    </tr>
-                                    <tr v-if="trimestre !== 3">
-                                        <td class="py-1 px-2 font-semibold border border-gray-400">Appréciation du travail</td>
-                                        <td class="py-1 px-2 text-right font-semibold border border-gray-400">{{ appreciationTravail }}</td>
-                                    </tr>
-                                </table>
-                               <p v-if="!estPrimaire" class="mt-2 text-center font-bold text-emerald-700 border-t pt-2">Mention : {{ mention }}</p>
-                            </div>
-
-                            <div class="border rounded-md p-3">
-                                <p class="font-bold mb-2">Discipline</p>
-                                <table class="w-full text-xs border-collapse border border-gray-400">
-                                    <tr>
-                                        <td class="py-1 px-2 border border-gray-400">Absences justifiées</td>
-                                        <td class="py-1 px-2 text-right border border-gray-400">{{ assiduite.absences_justifiees }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="py-1 px-2 border border-gray-400">Absences injustifiées</td>
-                                        <td class="py-1 px-2 text-right border border-gray-400">{{ assiduite.absences_injustifiees }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="py-1 px-2 border border-gray-400">Retards justifiés</td>
-                                        <td class="py-1 px-2 text-right border border-gray-400">{{ assiduite.retards_justifies }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="py-1 px-2 border border-gray-400">Retards injustifiés</td>
-                                        <td class="py-1 px-2 text-right border border-gray-400">{{ assiduite.retards_injustifies }}</td>
-                                    </tr>
-                                </table>
-                                <p class="mt-2 text-xs"><span class="font-semibold">Avertissements :</span> {{ assiduite.avertissements }}</p>
-                                <p class="text-xs"><span class="font-semibold">Blâme :</span> {{ assiduite.blame }}</p>
-                            </div>
-                            <div v-if="trimestre === 3" class="border rounded-md p-3 bg-emerald-50">
-                                <p class="font-bold mb-2">Résultat annuel</p>
-                                <table class="w-full text-xs border-collapse border border-gray-400">
-                                    <tr>
-                                        <td class="py-1 px-2 border border-gray-400">Rang</td>
-                                        <td class="py-1 px-2 text-right font-semibold border border-gray-400">{{ rangAnnuel }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="py-1 px-2 border border-gray-400">Moyenne annuelle la plus haute</td>
-                                        <td class="py-1 px-2 text-right border border-gray-400">{{ moyennePlusHauteAnnuelle ?? '—' }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="py-1 px-2 border border-gray-400">Moyenne annuelle la plus basse</td>
-                                        <td class="py-1 px-2 text-right border border-gray-400">{{ moyennePlusBasseAnnuelle ?? '—' }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="py-1 px-2 border border-gray-400">Effectif total de la classe</td>
-                                        <td class="py-1 px-2 text-right border border-gray-400">{{ effectifClasse }}</td>
-                                    </tr>
-                                </table>
-                              <p v-if="!estPrimaire" class="mt-2 text-center font-bold text-emerald-700 border-t pt-2">Mention annuelle : {{ mentionAnnuelle }}</p>
-                            </div>
-                         </div>
-                            <div class="grid grid-cols-2 gap-4 mt-6 pt-6 border-t">
-                                <div>
-                                    <p class="font-semibold mb-8">Visa des parents ou tuteurs</p>
-                                </div>
-                                <div class="text-right">
-                                    <p class="font-semibold mb-8">Visa de la Directrice</p>
-                                    <p v-if="decisionAnnuelle" class="text-center font-bold uppercase text-emerald-700 border border-gray-400 rounded-md py-2 mt-2">
-                                        {{ decisionAnnuelle }}
-                                    </p>
-                                </div>
-                            </div>
-
-                        <p class="text-right text-xs mt-4">Pointe-Noire le {{ new Date().toLocaleDateString('fr-FR') }}</p>
+   <div :class="trimestre === 3 ? 'grid grid-cols-3 gap-4' : 'grid grid-cols-2 gap-4'">
+            <div class="border rounded-md p-3">
+               <p class="font-bold mb-2">Résultat trimestriel</p>
+                        <table class="w-full text-xs border-collapse border border-gray-400">
+                            <tr>
+                                <td class="py-1 px-2 border border-gray-400">Rang</td>
+                                <td class="py-1 px-2 text-right font-semibold border border-gray-400">{{ rangGeneral ?? '—' }}</td>
+                            </tr>
+                            <tr v-if="!estPrimaire">
+                                <td class="py-1 px-2 border border-gray-400">Moyenne de classe</td>
+                                <td class="py-1 px-2 text-right font-semibold border border-gray-400">{{ moyenneControleEleve ?? '—' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 border border-gray-400">Moyenne la plus haute</td>
+                                <td class="py-1 px-2 text-right border border-gray-400">{{ moyennePlusHaute ?? '—' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 border border-gray-400">Moyenne la plus basse</td>
+                                <td class="py-1 px-2 text-right border border-gray-400">{{ moyennePlusBasse ?? '—' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 border border-gray-400">Effectif total de la classe</td>
+                                <td class="py-1 px-2 text-right border border-gray-400">{{ effectifClasse }}</td>
+                            </tr>
+                            <tr v-if="trimestre !== 3">
+                                <td class="py-1 px-2 font-semibold border border-gray-400">Appréciation du travail</td>
+                                <td class="py-1 px-2 text-right font-semibold border border-gray-400">{{ appreciationTravail }}</td>
+                            </tr>
+                        </table>
+                       <p v-if="!estPrimaire" class="mt-2 text-center font-bold text-emerald-700 border-t pt-2">Mention : {{ mention }}</p>
                     </div>
+
+                    <div class="border rounded-md p-3">
+                        <p class="font-bold mb-2">Discipline</p>
+                        <table class="w-full text-xs border-collapse border border-gray-400">
+                            <tr>
+                                <td class="py-1 px-2 border border-gray-400">Absences justifiées</td>
+                                <td class="py-1 px-2 text-right border border-gray-400">{{ assiduite.absences_justifiees }}</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 border border-gray-400">Absences injustifiées</td>
+                                <td class="py-1 px-2 text-right border border-gray-400">{{ assiduite.absences_injustifiees }}</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 border border-gray-400">Retards justifiés</td>
+                                <td class="py-1 px-2 text-right border border-gray-400">{{ assiduite.retards_justifies }}</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 border border-gray-400">Retards injustifiés</td>
+                                <td class="py-1 px-2 text-right border border-gray-400">{{ assiduite.retards_injustifies }}</td>
+                            </tr>
+                        </table>
+                        <p class="mt-2 text-xs"><span class="font-semibold">Avertissements :</span> {{ assiduite.avertissements }}</p>
+                        <p class="text-xs"><span class="font-semibold">Blâme :</span> {{ assiduite.blame }}</p>
+                    </div>
+                    <div v-if="trimestre === 3" class="border rounded-md p-3 bg-emerald-50">
+                        <p class="font-bold mb-2">Résultat annuel</p>
+                        <table class="w-full text-xs border-collapse border border-gray-400">
+                            <tr>
+                                <td class="py-1 px-2 border border-gray-400">Rang</td>
+                                <td class="py-1 px-2 text-right font-semibold border border-gray-400">{{ rangAnnuel ?? '—' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 border border-gray-400">Moyenne annuelle la plus haute</td>
+                                <td class="py-1 px-2 text-right border border-gray-400">{{ moyennePlusHauteAnnuelle ?? '—' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 border border-gray-400">Moyenne annuelle la plus basse</td>
+                                <td class="py-1 px-2 text-right border border-gray-400">{{ moyennePlusBasseAnnuelle ?? '—' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 border border-gray-400">Effectif total de la classe</td>
+                                <td class="py-1 px-2 text-right border border-gray-400">{{ effectifClasse }}</td>
+                            </tr>
+                        </table>
+                      <p v-if="!estPrimaire" class="mt-2 text-center font-bold text-emerald-700 border-t pt-2">Mention annuelle : {{ mentionAnnuelle }}</p>
+                    </div>
+                 </div>
+                    <div class="grid grid-cols-2 gap-4 mt-6 pt-6 border-t">
+                        <div>
+                            <p class="font-semibold mb-8">Visa des parents ou tuteurs</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-semibold mb-8">Visa de {{ estLycee ? 'la Proviseure' : 'la Directrice' }}</p>
+                            <p v-if="decisionAnnuelle" class="text-center font-bold uppercase text-emerald-700 border border-gray-400 rounded-md py-2 mt-2">
+                                {{ decisionAnnuelle }}
+                            </p>
+                        </div>
+                    </div>
+
+              <p class="text-right text-xs mt-4">Pointe-Noire le {{ dateSignature }}</p> 
+            </div>
 
                 </div>
             </div>
         </div>
-    </AdminLayout>
+    </component>
 </template>

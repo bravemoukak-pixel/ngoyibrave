@@ -16,10 +16,20 @@ const form = useForm({
   adresse: props.eleve.adresse,
   classe_id: props.eleve.classe_id,
   montant_annuel: props.eleve.montant_annuel,
+  photo: null,
 });
 
+function gererPhoto(event) {
+    form.photo = event.target.files[0];
+}
+
 function submit() {
-  form.put(route('eleves.update', props.eleve.id));
+  form.transform((data) => ({
+      ...data,
+      _method: 'put',
+  })).post(route('eleves.update', props.eleve.id), {
+      forceFormData: true,
+  });
 }
 </script>
 
@@ -40,6 +50,16 @@ function submit() {
                             <label class="block text-sm font-medium text-gray-700 mb-1">Nom</label>
                             <input v-model="form.nom" type="text" class="w-full rounded-md border-gray-300 shadow-sm" />
                             <p v-if="form.errors.nom" class="text-red-600 text-sm mt-1">{{ form.errors.nom }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Photo</label>
+                            <img
+                                v-if="eleve.photo"
+                                :src="`/storage/${eleve.photo}`"
+                                class="w-24 h-24 object-cover rounded-md mb-2 border"
+                            />
+                            <input type="file" accept="image/*" @change="gererPhoto" class="w-full text-sm" />
+                            <p v-if="form.errors.photo" class="text-red-600 text-sm mt-1">{{ form.errors.photo }}</p>
                         </div>
 
                         <div>

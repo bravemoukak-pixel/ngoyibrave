@@ -24,4 +24,8 @@ class Classe extends Model
     {
         return $this->belongsToMany(Professeur::class, 'classe_professeur');
     }
+    public function classeSuivante()
+    {
+        return $this->belongsTo(Classe::class, 'classe_suivante_id');
+    }
 }

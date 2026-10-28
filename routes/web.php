@@ -21,14 +21,19 @@ use App\Models\Professeur;
 use App\Models\ParentEleve;
 use App\Http\Controllers\PaiementController;
 use App\Http\Controllers\SuiviNotesController;
+use App\Http\Controllers\CarteScolaireController;
+use App\Http\Controllers\MatriculeExamenController;
+use App\Http\Controllers\ReleveViergeController;
+use App\Http\Controllers\SuiviPaiementController;
+use App\Http\Controllers\EmploiDuTempsController;
+use App\Http\Controllers\PassageClasseController;
+use App\Http\Controllers\DiplomeController;
+use App\Http\Controllers\HistoriqueClasseController;
+use App\Http\Controllers\SauvegardeController;
+use App\Http\Controllers\EspaceParentController;
 
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
+    return redirect()->route('login');
 });
 
 Route::middleware([
@@ -55,12 +60,22 @@ Route::middleware([
             ->withCount(['eleves as filles_count' => fn($q) => $q->where('sexe', 'F')])
             ->orderBy('nom')
             ->get()
-            ->map(fn($c) => [
-                'nom' => $c->nom,
-                'niveau' => $c->niveau->titre,
-                'effectif' => $c->eleves_count,
-                'filles' => $c->filles_count,
-            ]);
+            ->map(function ($c) {
+                $titre = $c->niveau->titre;
+                $categorie = match (true) {
+                    $titre === 'Primaire' => 'Primaire',
+                    $titre === 'Collège' => 'Collège',
+                    str_starts_with($titre, 'Lycée') => 'Lycée',
+                    default => $titre,
+                };
+
+                return [
+                    'nom' => $c->nom,
+                    'niveau' => $categorie,
+                    'effectif' => $c->eleves_count,
+                    'filles' => $c->filles_count,
+                ];
+            });
 
         return Inertia::render('Dashboard', [
             'stats' => [
@@ -88,12 +103,13 @@ Route::middleware([
 Route::middleware(['auth'])->group(function () {
 
     // Rubriques Secrétaire (+ Admin automatiquement)
-    Route::middleware(['role:secretaire'])->group(function () {
+    Route::middleware(['role:secretaire,direction'])->group(function () {
 
         Route::get('/niveaux/{niveau}/inscription', [EleveController::class, 'create'])->name('eleves.create');
         Route::post('/eleves', [EleveController::class, 'store'])->name('eleves.store');
 
         Route::get('/professeurs', [ProfesseurController::class, 'index'])->name('professeurs.index');
+        Route::get('/professeurs/annuaire', [ProfesseurController::class, 'annuaire'])->name('professeurs.annuaire');
         Route::get('/professeurs/create', [ProfesseurController::class, 'create'])->name('professeurs.create');
         Route::post('/professeurs', [ProfesseurController::class, 'store'])->name('professeurs.store');
         Route::get('/eleves/{eleve}/edit', [EleveController::class, 'edit'])->name('eleves.edit');
@@ -118,10 +134,28 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/parents/{parent}/edit', [ParentEleveController::class, 'edit'])->name('parents.edit');
         Route::put('/parents/{parent}', [ParentEleveController::class, 'update'])->name('parents.update');
         Route::delete('/parents/{parent}', [ParentEleveController::class, 'destroy'])->name('parents.destroy');
+        Route::get('/classes/{classe}/cartes-scolaires', [CarteScolaireController::class, 'index'])->name('cartes-scolaires.index');
+        Route::get('/classes/{classe}/matricules-examen', [MatriculeExamenController::class, 'saisie'])->name('matricules-examen.saisie');
+        Route::post('/matricules-examen', [MatriculeExamenController::class, 'enregistrer'])->name('matricules-examen.enregistrer');
+        Route::get('/emplois-du-temps/classe/{classe}', [EmploiDuTempsController::class, 'classe'])->name('emplois-du-temps.classe');
+        Route::post('/emplois-du-temps', [EmploiDuTempsController::class, 'store'])->name('emplois-du-temps.store');
+        Route::delete('/emplois-du-temps/{emploiDuTemps}', [EmploiDuTempsController::class, 'destroy'])->name('emplois-du-temps.destroy');
+        Route::get('/emplois-du-temps/professeur/{professeur}', [EmploiDuTempsController::class, 'professeur'])->name('emplois-du-temps.professeur');
+        Route::get('/passage-classe/{classe}', [PassageClasseController::class, 'index'])->name('passage-classe.index');
+        Route::post('/passage-classe/{classe}', [PassageClasseController::class, 'valider'])->name('passage-classe.valider');
+        Route::get('/diplomes/{classe}', [DiplomeController::class, 'index'])->name('diplomes.index');
+        Route::get('/historique-classes', [HistoriqueClasseController::class, 'index'])->name('historique-classes.index');
+        Route::get('/emplois-du-temps/general/college', [EmploiDuTempsController::class, 'generalCollege'])->name('emplois-du-temps.general.college');
+        Route::get('/emplois-du-temps/general/lycee', [EmploiDuTempsController::class, 'generalLycee'])->name('emplois-du-temps.general.lycee');
+        Route::get('/emplois-du-temps/general/complet', [\App\Http\Controllers\EmploiDuTempsController::class, 'generalComplet'])->name('emplois-du-temps.general.complet');
+        Route::get('/statistiques/college', [\App\Http\Controllers\StatistiquesController::class, 'college'])->name('statistiques.college');
+        Route::get('/statistiques/lycee', [\App\Http\Controllers\StatistiquesController::class, 'lycee'])->name('statistiques.lycee');
+        Route::get('/statistiques/repartition-age', [\App\Http\Controllers\StatistiquesController::class, 'repartitionAge'])->name('statistiques.repartition-age');
+        Route::get('/statistiques/evolution', [\App\Http\Controllers\StatistiquesController::class, 'evolution'])->name('statistiques.evolution');
+        Route::get('/parents/par-niveau', [\App\Http\Controllers\ParentEleveController::class, 'parNiveau'])->name('parents.par-niveau');
     });
     // à ajouter juste après le groupe 'secretaire' :
-    Route::middleware(['role:secretaire,primaire'])->group(function () {
-
+    Route::middleware(['role:secretaire,primaire,direction'])->group(function () {
         Route::get('/niveaux', [NiveauController::class, 'index'])->name('niveaux.index');
         Route::get('/niveaux/{niveau}/eleves', [NiveauController::class, 'eleves'])->name('niveaux.eleves');
         Route::get('/classes/{classe}/eleves', [ClasseController::class, 'eleves'])->name('classes.eleves');
@@ -130,10 +164,11 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/eleves/{eleve}/bulletin', [BulletinController::class, 'show'])->name('bulletin.show');
         Route::get('/suivi-notes', [SuiviNotesController::class, 'index'])->name('suivi-notes.index');
         Route::get('/suivi-notes/classe', [SuiviNotesController::class, 'classe'])->name('suivi-notes.classe');
+        Route::get('/classes/{classe}/releve-vierge', [ReleveViergeController::class, 'index'])->name('releve-vierge.index');
     });
 
     // Rubriques Comptable (+ Admin automatiquement)
-    Route::middleware(['role:comptable'])->group(function () {
+    Route::middleware(['role:comptable,direction'])->group(function () {
         Route::get('/pointages/recap', [PointageController::class, 'recap'])->name('pointages.recap');
         Route::get('/pointages/gestion', [PointageController::class, 'gestion'])->name('pointages.gestion');
         Route::post('/pointages', [PointageController::class, 'ajouter'])->name('pointages.ajouter');
@@ -146,7 +181,15 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/paiements/{parent}', [PaiementController::class, 'show'])->name('paiements.show');
         Route::post('/paiements', [PaiementController::class, 'ajouterPaiement'])->name('paiements.ajouter');
         Route::delete('/paiements/{paiement}', [PaiementController::class, 'supprimerPaiement'])->name('paiements.supprimer');
+        Route::get('/suivi-paiements', [SuiviPaiementController::class, 'index'])->name('suivi-paiements.index');
         Route::get('/paiements/{paiement}/recu', [PaiementController::class, 'recu'])->name('paiements.recu');
+    });
+    Route::middleware(['role:admin'])->group(function () {
+        Route::get('/sauvegarde/exporter', [SauvegardeController::class, 'exporter'])->name('sauvegarde.exporter');
+    });
+    Route::middleware(['role:parent'])->group(function () {
+        Route::get('/espace-parent', [EspaceParentController::class, 'index'])->name('espace-parent.index');
+        Route::get('/espace-parent/eleves/{eleve}/bulletin', [EspaceParentController::class, 'bulletin'])->name('espace-parent.bulletin');
     });
 });
 

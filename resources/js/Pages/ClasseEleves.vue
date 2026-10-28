@@ -1,11 +1,17 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link, router } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
-defineProps({
+const props = defineProps({
   classe: Object,
   eleves: Array,
 });
+const classesAvecCarte = ['CM2', '3ᵉ', 'Terminale A', 'Terminale C', 'Terminale D'];
+const aDroitAuxCartes = classesAvecCarte.some(prefixe => props.classe.nom.startsWith(prefixe));
+const totalEleves = computed(() => props.eleves.length);
+const totalFilles = computed(() => props.eleves.filter(e => e.sexe === 'F').length);
+const totalGarcons = computed(() => props.eleves.filter(e => e.sexe === 'M').length);
 
 function supprimer(id) {
     if (confirm('Voulez-vous vraiment supprimer cet élève ?')) {
@@ -51,7 +57,7 @@ function anneeScolaire() {
                 </div>
 
                 <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-lg font-semibold text-gray-700">Liste des élèves</h3>
+                    <h3 class="text-lg font-semibold text-gray-700">Liste des élèves — {{ classe.nom }}</h3>
 
                     <div class="flex items-center gap-2">
                         <Link
@@ -61,12 +67,33 @@ function anneeScolaire() {
                             📝 Saisir les notes
                         </Link>
                         <Link
+                            v-if="!estPrimaireClasse"
+                            :href="route('releve-vierge.index', classe.id)"
+                            class="no-print bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-md"
+                        >
+                            📄 Relevé à imprimer
+                        </Link>
+                        <Link
                             :href="route('assiduites.saisie', classe.id)"
                             class="no-print bg-purple-600 hover:bg-purple-700 text-white font-semibold px-4 py-2 rounded-md"
                         >
                             📋 Assiduité
                         </Link>
-                        <button
+                       <Link
+                            v-if="aDroitAuxCartes"
+                            :href="route('cartes-scolaires.index', classe.id)"
+                            class="no-print bg-amber-600 hover:bg-amber-700 text-white font-semibold px-4 py-2 rounded-md"
+                        >
+                            🪪 Cartes scolaires
+                        </Link> 
+                        <Link
+                            v-if="aDroitAuxCartes"
+                            :href="route('matricules-examen.saisie', classe.id)"
+                            class="no-print bg-teal-600 hover:bg-teal-700 text-white font-semibold px-4 py-2 rounded-md"
+                        >
+                            🔢 Matricules examen
+                        </Link>
+                       <button
                             @click="imprimer"
                             class="no-print bg-gray-700 hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-md"
                         >
@@ -115,6 +142,10 @@ function anneeScolaire() {
                         </tr>
                     </tbody>
                 </table>
+                <div v-if="eleves.length > 0" class="mt-3 text-sm font-semibold text-gray-700 text-right">
+                    Total : {{ totalEleves }} élève{{ totalEleves > 1 ? 's' : '' }}
+                    (dont {{ totalFilles }} fille{{ totalFilles > 1 ? 's' : '' }}, {{ totalGarcons }} garçon{{ totalGarcons > 1 ? 's' : '' }})
+                </div>
                 </div>
             </div>
         </div>
